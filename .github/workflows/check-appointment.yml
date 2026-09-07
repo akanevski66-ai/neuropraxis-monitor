@@ -1,6 +1,8 @@
 name: Check Neuropraxis appointment
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -47,7 +49,7 @@ jobs:
           fi
 
       - name: Notify Telegram
-        if: steps.monitor.outputs.available == 'true'
+        if: steps.monitor.outputs.available == 'true' || github.event_name == 'push'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           RESULT: ${{ steps.monitor.outputs.result }}
@@ -61,7 +63,11 @@ jobs:
             if (!last?.chat?.id) process.exit(2);
             process.stdout.write(String(last.chat.id));
           ' "$UPDATES")
-          TEXT="🚨 Neuropraxis Neuwied: появился свободный термин для Erstgespräch / Neupatient(in). Ничего не забронировано. Открой: https://app.arzt-direkt.de/neuropraxis-neuwied/booking"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ steps.monitor.outputs.available }}" != "true" ]; then
+            TEXT="✅ Монитор Neuropraxis Neuwied успешно запущен. Сейчас свободных терминов для Erstgespräch / Neupatient(in) нет. Дальше я буду писать только при появлении термина."
+          else
+            TEXT="🚨 Neuropraxis Neuwied: появился свободный термин для Erstgespräch / Neupatient(in). Ничего не забронировано. Открой: https://app.arzt-direkt.de/neuropraxis-neuwied/booking"
+          fi
           curl --fail --silent --show-error \
             --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
