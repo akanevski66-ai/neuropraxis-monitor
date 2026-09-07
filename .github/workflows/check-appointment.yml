@@ -1,0 +1,68 @@
+name: Check Neuropraxis appointment
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: neuropraxis-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Check appointment page
+        id: monitor
+        shell: bash
+        run: |
+          set +e
+          OUTPUT=$(node monitor.mjs)
+          CODE=$?
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          if [ "$CODE" -eq 10 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$CODE" -eq 0 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            exit "$CODE"
+          fi
+
+      - name: Notify Telegram
+        if: steps.monitor.outputs.available == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          RESULT: ${{ steps.monitor.outputs.result }}
+        run: |
+          UPDATES=$(curl --fail --silent --show-error \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates")
+          TELEGRAM_CHAT_ID=$(node -e '
+            const data = JSON.parse(process.argv[1]);
+            const messages = (data.result || []).map(x => x.message).filter(Boolean);
+            const last = messages.at(-1);
+            if (!last?.chat?.id) process.exit(2);
+            process.stdout.write(String(last.chat.id));
+          ' "$UPDATES")
+          TEXT="🚨 Neuropraxis Neuwied: появился свободный термин для Erstgespräch / Neupatient(in). Ничего не забронировано. Открой: https://app.arzt-direkt.de/neuropraxis-neuwied/booking"
+          curl --fail --silent --show-error \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TEXT}"
