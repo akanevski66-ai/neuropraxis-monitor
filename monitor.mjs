@@ -18,7 +18,7 @@ try {
   await newPatient.waitFor({ state: "visible", timeout: 30_000 });
   await newPatient.click();
 
-  await page.getByText("Wählen Sie einen Termin", { exact: true })
+  await page.getByRole("heading", { name: "Wählen Sie einen Termin", exact: true }).first()
     .waitFor({ state: "visible", timeout: 30_000 });
 
   await page.waitForTimeout(2_000);
