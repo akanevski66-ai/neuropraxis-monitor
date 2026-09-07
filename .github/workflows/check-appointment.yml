@@ -64,9 +64,9 @@ jobs:
             process.stdout.write(String(last.chat.id));
           ' "$UPDATES")
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ steps.monitor.outputs.available }}" != "true" ]; then
-            TEXT="✅ Монитор Neuropraxis Neuwied успешно запущен. Сейчас свободных терминов для Erstgespräch / Neupatient(in) нет. Дальше я буду писать только при появлении термина."
+            TEXT=$'✅ Тест обновлённого уведомления прошёл успешно.\n\nNeuropraxis Neuwied\n📍 Ringstraße 66, 56564 Neuwied\n🗺 https://www.google.com/maps/search/?api=1&query=Ringstra%C3%9Fe+66%2C+56564+Neuwied\n📞 Телефон: +49 2631 95 91 676\n📠 Факс: +49 2631 95 91 671\n\nСейчас свободных терминов для Erstgespräch / Neupatient(in) нет.'
           else
-            TEXT="🚨 Neuropraxis Neuwied: появился свободный термин для Erstgespräch / Neupatient(in). Ничего не забронировано. Открой: https://app.arzt-direkt.de/neuropraxis-neuwied/booking"
+            TEXT=$'🚨 Neuropraxis Neuwied: появился свободный термин для Erstgespräch / Neupatient(in)!\n\nНичего не забронировано.\n\n🔗 Онлайн-запись:\nhttps://app.arzt-direkt.de/neuropraxis-neuwied/booking\n\n📍 Ringstraße 66, 56564 Neuwied\n🗺 https://www.google.com/maps/search/?api=1&query=Ringstra%C3%9Fe+66%2C+56564+Neuwied\n📞 Телефон: +49 2631 95 91 676\n📠 Факс: +49 2631 95 91 671'
           fi
           curl --fail --silent --show-error \
             --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
